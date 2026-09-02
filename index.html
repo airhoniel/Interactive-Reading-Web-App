@@ -633,14 +633,11 @@ The most priceless gift that God has given us is our life. We should not waste o
         // hammering it and making things worse.
         let rateLimitedUntil = 0;
 
-        async function getDef(word) {
-            const clean = word.toLowerCase().replace(/[^a-z]/g, '');
-            if (clean.length < 3) return { def: null, reason: 'too-short' };
-            if (clean in definitionCache) return { def: definitionCache[clean], reason: definitionCache[clean] ? 'ok' : 'not-found' };
-
-            // Bail out after 6s instead of letting a slow/stuck request hang indefinitely.
+        async function fetchFromPrimary(clean) {
+            // Bail out after 4s instead of letting a slow/stuck request hang indefinitely
+            // (a fallback source is tried next, so this doesn't need to wait as long).
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 6000);
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
             try {
                 const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${clean}`, { signal: controller.signal });
                 if (res.status === 404) {
@@ -652,7 +649,7 @@ The most priceless gift that God has given us is our life. We should not waste o
                     rateLimitedUntil = Date.now() + 5000; // back off background prefetching for a bit
                     return { def: null, reason: 'rate-limited' };
                 }
-                if (!res.ok) return { def: null, reason: `http-${res.status}` }; // transient server hiccup — don't cache, so a later hover can retry
+                if (!res.ok) return { def: null, reason: `http-${res.status}` }; // transient server hiccup
                 const data = await res.json();
                 const d = data[0].meanings[0].definitions[0].definition;
                 definitionCache[clean] = d;
@@ -664,6 +661,47 @@ The most priceless gift that God has given us is our life. We should not waste o
             } finally {
                 clearTimeout(timeoutId);
             }
+        }
+
+        // A second, independent dictionary source (different host/infrastructure
+        // entirely) used only when the primary API times out, errors, or is
+        // rate-limited — so one provider having a bad day doesn't take the whole
+        // feature down. Datamuse's `md=d` flag returns definitions when it has them.
+        async function fetchFromFallback(clean) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            try {
+                const res = await fetch(`https://api.datamuse.com/words?sp=${clean}&md=d&max=1`, { signal: controller.signal });
+                if (!res.ok) return null;
+                const data = await res.json();
+                const raw = data[0]?.defs?.[0];
+                if (!raw) return null;
+                // Datamuse formats each entry as "partOfSpeech\tdefinition" — drop the tag.
+                const tabIdx = raw.indexOf('\t');
+                return tabIdx >= 0 ? raw.slice(tabIdx + 1) : raw;
+            } catch (e) {
+                return null;
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
+        async function getDef(word) {
+            const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+            if (clean.length < 3) return { def: null, reason: 'too-short' };
+            if (clean in definitionCache) return { def: definitionCache[clean], reason: definitionCache[clean] ? 'ok' : 'not-found' };
+
+            const primary = await fetchFromPrimary(clean);
+            if (primary.def !== null || primary.reason === 'not-found') return primary;
+
+            // Primary failed for a transient reason (timeout/network/rate-limit) — try the fallback source before giving up.
+            const fallbackDef = await fetchFromFallback(clean);
+            if (fallbackDef) {
+                definitionCache[clean] = fallbackDef;
+                return { def: fallbackDef, reason: 'ok' };
+            }
+
+            return primary; // both sources failed; surface the primary's failure reason for diagnostics
         }
 
         // Tries a couple of times with a short pause between attempts — worth it for
