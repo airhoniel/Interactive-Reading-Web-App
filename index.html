@@ -9,6 +9,15 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Lexend:wght@400;500;600;700&display=swap');
 
+        /* Defined ourselves rather than relying solely on the Tailwind CDN to generate
+           this utility at runtime. This deployment has repeatedly seen third-party
+           scripts/APIs fail to load in some environments (blocked CDNs, ad blockers,
+           restrictive networks) — if that happens to the Tailwind script specifically,
+           ".hidden" would otherwise silently do nothing, leaving controls like the
+           Pause/Stop buttons visibly stuck on screen when they should be hidden.
+           This rule guarantees hide/show behavior works no matter what. */
+        .hidden { display: none !important; }
+
         :root {
             --ink: #16264D;
             --portal-blue: #2554C7;
