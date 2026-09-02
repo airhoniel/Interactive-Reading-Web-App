@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GSCNSSAT | S.M.A.R.T. Reading Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Lexend:wght@400;500;600;700&display=swap');
+
+        :root {
+            --ink: #16264D;
+            --portal-blue: #2554C7;
+            --portal-blue-dark: #17389E;
+            --sky: #EAF1FF;
+            --paper: #FBF7EF;
+            --coral: #EE5A36;
+            --coral-dark: #C6431F;
+            --gold: #F3B23E;
+            --gold-dark: #C97F0F;
+            --green: #1E9E5A;
+        }
+
+        body {
+            font-family: 'Lexend', sans-serif;
+            background-color: var(--paper);
+            color: var(--ink);
+            display: flex; flex-direction: column; min-height: 100vh;
+        }
+        .font-display { font-family: 'Baloo 2', sans-serif; }
+
+        /* ===== Hero (book-cover) ===== */
+        .site-hero {
+            position: relative;
+            background: linear-gradient(135deg, var(--ink) 0%, var(--portal-blue-dark) 55%, var(--portal-blue) 100%);
+            padding: 52px 24px 96px;
+            text-align: center;
+            overflow: hidden;
+        }
+        .site-hero::before {
+            content: "";
+            position: absolute; inset: 0;
+            background-image: repeating-linear-gradient(115deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 46px);
+            pointer-events: none;
+        }
+        .hero-inner { position: relative; max-width: 720px; margin: 0 auto; }
+        .hero-crest {
+            width: 108px; height: 108px; border-radius: 9999px; background: #fff;
+            padding: 6px; margin: 0 auto 22px; box-shadow: 0 16px 34px -8px rgba(0,0,0,0.45), 0 0 0 4px rgba(255,255,255,0.15);
+        }
+        .hero-crest img { width: 100%; height: 100%; border-radius: 9999px; object-fit: cover; display: block; }
+        .site-hero h1 {
+            color: #fff; font-size: clamp(1.15rem, 2.6vw, 1.75rem); line-height: 1.35;
+            max-width: 620px; margin: 0 auto;
+        }
+        .hero-tagline {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: var(--gold); color: var(--ink);
+            font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 0.8rem;
+            padding: 7px 18px; border-radius: 999px; margin-top: 18px;
+            box-shadow: 0 6px 16px -4px rgba(0,0,0,0.35);
+        }
+        .hero-edge { position: absolute; left: 0; right: 0; bottom: -1px; width: 100%; height: 56px; display: block; }
+
+        /* ===== Cards ===== */
+        .tool-card {
+            background: #fff; border-radius: 20px; padding: 22px;
+            border: 1px solid rgba(22,38,77,0.07);
+            box-shadow: 0 1px 2px rgba(22,38,77,0.05), 0 10px 26px -18px rgba(22,38,77,0.4);
+        }
+        .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+        .icon-chip {
+            width: 34px; height: 34px; border-radius: 11px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .card-head h3 { font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 0.92rem; color: var(--ink); }
+
+        .field-input {
+            width: 100%; padding: 10px 12px; border: 1px solid rgba(22,38,77,0.15); border-radius: 10px;
+            font-size: 0.8rem; background: var(--sky); outline: none; font-family: 'Lexend', sans-serif;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .field-input:focus { border-color: var(--portal-blue); box-shadow: 0 0 0 3px rgba(37,84,199,0.15); background: #fff; }
+
+        .select-field { position: relative; }
+        .select-field i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--portal-blue); width: 16px; height: 16px; pointer-events: none; }
+        .select-field select { padding-left: 36px; }
+
+        /* ===== Buttons ===== */
+        .action-btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 0.78rem;
+            padding: 10px 16px; border-radius: 12px; transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+            border: none; cursor: pointer;
+        }
+        .action-btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 12px 22px -10px rgba(22,38,77,0.5); }
+        .action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .action-btn--blue { background: var(--portal-blue); color: #fff; }
+        .action-btn--coral { background: var(--coral); color: #fff; }
+        .action-btn--gold { background: var(--gold); color: var(--ink); }
+        .action-btn--navy { background: var(--ink); color: #fff; }
+        .action-btn--ghost { background: var(--sky); color: var(--portal-blue-dark); }
+        .action-btn-lg { padding: 16px 20px; border-radius: 18px; font-size: 0.92rem; width: 100%; }
+
+        .record-btn {
+            width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 12px; border-radius: 12px; font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 0.78rem;
+            border: 1px solid rgba(22,38,77,0.12); background: var(--sky); color: var(--portal-blue-dark);
+            transition: all 0.2s;
+        }
+        .record-btn:hover:not(:disabled) { background: #dfeaff; }
+        .record-btn:disabled { opacity: 0.4; }
+        .record-btn.is-recording { background: #E23B3B; color: #fff; border-color: #E23B3B; animation: pulse 1.4s infinite; }
+        .record-btn.is-armed { background: var(--coral); color: #fff; border-color: var(--coral); }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.65; } 100% { opacity: 1; } }
+
+        /* ===== Reading page ===== */
+        .book-panel { background: #fff; border-radius: 26px; overflow: hidden; border: 1px solid rgba(22,38,77,0.08); box-shadow: 0 24px 50px -30px rgba(22,38,77,0.5); }
+        .book-toolbar { background: var(--sky); padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid rgba(22,38,77,0.08); }
+        .story-select-wrap { display: flex; align-items: center; gap: 8px; color: var(--portal-blue); }
+        #storySelect { background: transparent; border: none; border-bottom: 2px solid var(--portal-blue); font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 0.85rem; color: var(--ink); outline: none; padding: 4px 2px; }
+
+        #paragraphInput { width: 100%; padding: 14px 18px; height: 5.5rem; outline: none; font-style: italic; color: #94a3b8; border-bottom: 1px solid rgba(22,38,77,0.08); font-size: 0.75rem; font-family: 'Lexend', sans-serif; resize: vertical; }
+
+        #readingDisplay {
+            padding: 40px; min-height: 380px; font-size: 1.5rem; line-height: 2.7;
+            background: linear-gradient(180deg, #fffefb 0%, var(--paper) 100%); color: var(--ink);
+        }
+        .word-item { cursor: pointer; padding: 2px 5px; border-radius: 6px; transition: all 0.2s; display: inline-block; border: 1px solid transparent; }
+        .word-item:hover { background-color: var(--sky); color: var(--portal-blue); }
+        .word-item.clicked-active { background-color: var(--sky); color: var(--portal-blue-dark); border-color: var(--portal-blue); transform: scale(1.08); }
+        .word-item.highlight { background-color: var(--gold); color: var(--ink) !important; font-weight: 700; box-shadow: 0 4px 14px rgba(243,178,62,0.55); transform: scale(1.08); }
+
+        #tooltip {
+            position: absolute; display: none; background: var(--gold); color: var(--ink);
+            padding: 12px 14px; border-radius: 4px 14px 14px 14px; font-size: 0.82rem; max-width: 250px;
+            z-index: 1000; pointer-events: none; box-shadow: 0 14px 24px -8px rgba(0,0,0,0.4);
+            transform: rotate(-1.5deg); font-family: 'Lexend', sans-serif;
+        }
+
+        .timer-badge { background: var(--sky); color: var(--portal-blue-dark); padding: 6px 18px; border-radius: 999px; font-weight: 800; font-family: 'Baloo 2', sans-serif; font-size: 1.1rem; border: 1px solid rgba(37,84,199,0.2); display: inline-block; }
+
+        /* ===== Quiz ===== */
+        .quiz-card { background: #fff; border-radius: 22px; padding: 24px; border-top: 6px solid var(--coral); box-shadow: 0 20px 40px -28px rgba(22,38,77,0.5); }
+        .quiz-q-card { background: var(--paper); border: 1px solid rgba(22,38,77,0.08); border-radius: 16px; padding: 20px; margin-bottom: 14px; }
+        .quiz-option { display: flex; align-items: center; gap: 12px; padding: 13px 15px; border: 2px solid rgba(22,38,77,0.1); background: #fff; border-radius: 14px; cursor: pointer; transition: all 0.15s; margin-bottom: 8px; font-size: 0.9rem; }
+        .quiz-option:hover { border-color: var(--portal-blue); background: var(--sky); }
+        .quiz-option.selected { border-color: var(--portal-blue); background: var(--sky); }
+        .quiz-option.correct { border-color: var(--green); background: #E8FBF0; }
+        .quiz-option.incorrect { border-color: var(--coral-dark); background: #FDECE7; }
+        .quiz-badge { width: 26px; height: 26px; border-radius: 999px; background: var(--sky); color: var(--portal-blue); display: flex; align-items: center; justify-content: center; font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 0.75rem; flex-shrink: 0; transition: all 0.15s; }
+        .quiz-option.selected .quiz-badge { background: var(--portal-blue); color: #fff; }
+        .quiz-option.correct .quiz-badge { background: var(--green); color: #fff; }
+        .quiz-option.incorrect .quiz-badge { background: var(--coral-dark); color: #fff; }
+
+        .score-bar-track { width: 100%; height: 14px; background: var(--sky); border-radius: 999px; overflow: hidden; margin: 16px 0 8px; }
+        .score-bar-fill { height: 100%; width: 0%; border-radius: 999px; transition: width 0.7s ease; background: var(--portal-blue); }
+
+        .result-card { background: #fff; border-radius: 22px; padding: 28px; border-top: 6px solid var(--green); box-shadow: 0 20px 40px -28px rgba(22,38,77,0.5); text-align: center; }
+        .report-card { background: #fff; border-radius: 22px; padding: 24px; border-top: 6px solid var(--portal-blue); box-shadow: 0 20px 40px -28px rgba(22,38,77,0.5); }
+
+        .word-chip { padding: 4px 12px; background: var(--sky); color: var(--portal-blue-dark); border-radius: 999px; font-size: 0.7rem; font-weight: 700; border: 1px solid rgba(37,84,199,0.15); }
+    </style>
+</head>
+<body>
+
+    <div id="tooltip"></div>
+
+    <header class="site-hero">
+        <div class="hero-inner">
+            <div class="hero-crest"><img src="data:image/png;base64,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" alt="GSCNSSAT school seal"></div>
+            <h1 class="font-display font-extrabold">General Santos City National Secondary School of Arts and Trades</h1>
+            <span class="hero-tagline"><i data-lucide="book-open-check" class="w-4 h-4"></i> S.M.A.R.T. Reading Intervention Portal</span>
+        </div>
+        <svg class="hero-edge" viewBox="0 0 1440 74" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#FBF7EF" d="M0,32 C 180,74 360,0 540,26 C 720,52 900,10 1080,24 C 1260,38 1350,10 1440,20 L1440,74 L0,74 Z"></path>
+        </svg>
+    </header>
+
+    <div class="max-w-6xl mx-auto w-full flex-grow px-4 md:px-8 pb-16 -mt-6">
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="space-y-6">
+
+                <div class="tool-card">
+                    <div class="card-head">
+                        <div class="icon-chip" style="background: var(--sky); color: var(--portal-blue);"><i data-lucide="user-round" class="w-4 h-4"></i></div>
+                        <h3>Student details</h3>
+                    </div>
+                    <div class="space-y-3">
+                        <input id="studentName" type="text" placeholder="Student's full name" class="field-input">
+                        <div class="select-field">
+                            <i data-lucide="graduation-cap"></i>
+                            <select id="studentGrade" class="field-input">
+                                <option value="">Select grade level</option>
+                                <option value="7">Grade 7</option>
+                                <option value="8">Grade 8</option>
+                                <option value="9">Grade 9</option>
+                                <option value="10">Grade 10</option>
+                            </select>
+                        </div>
+                        <input id="studentSection" type="text" placeholder="Section (e.g. Rizal)" class="field-input">
+                    </div>
+                </div>
+
+                <div class="tool-card">
+                    <div class="card-head">
+                        <div class="icon-chip" style="background: #FDECE7; color: var(--coral-dark);"><i data-lucide="mic" class="w-4 h-4"></i></div>
+                        <h3>Voice practice</h3>
+                    </div>
+                    <div class="space-y-3">
+                        <button id="startRecord" class="record-btn">
+                            <i data-lucide="circle" class="w-3 h-3 fill-current"></i> Start recording
+                        </button>
+                        <button id="stopRecord" disabled class="record-btn">
+                            <i data-lucide="square" class="w-3 h-3 fill-current"></i> Stop &amp; review
+                        </button>
+                        <div id="audioPlaybackContainer" class="hidden pt-4 border-t mt-2 text-center" style="border-color: rgba(22,38,77,0.1);">
+                            <audio id="audioPlayback" controls class="w-full h-10 mb-2"></audio>
+                            <a id="downloadLink" class="text-[10px] font-bold hover:underline inline-flex items-center gap-1" style="color: var(--portal-blue);"><i data-lucide="download" class="w-3 h-3"></i> Download recording</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tool-card text-center">
+                    <p class="text-[10px] font-bold mb-2" style="color: #64748b;">Reading time</p>
+                    <div id="timerDisplay" class="timer-badge">00:00</div>
+                </div>
+
+                <div class="tool-card">
+                    <div class="card-head">
+                        <div class="icon-chip" style="background: var(--sky); color: var(--portal-blue);"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i></div>
+                        <h3>Read-aloud settings</h3>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="select-field">
+                            <i data-lucide="audio-lines"></i>
+                            <select id="voiceSelect" class="field-input"></select>
+                        </div>
+                        <div class="select-field">
+                            <i data-lucide="gauge"></i>
+                            <select id="speedSelect" class="field-input">
+                                <option value="0.6">Slow pace</option>
+                                <option value="0.8">Balanced pace</option>
+                                <option value="1.0" selected>Normal pace</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-6">
+                <div class="book-panel">
+                    <div class="book-toolbar">
+                        <div class="story-select-wrap">
+                            <i data-lucide="bookmark" class="w-4 h-4"></i>
+                            <select id="storySelect" disabled>
+                                <option value="">Select a grade level first</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2 flex-wrap">
+                            <button id="processButton" class="action-btn action-btn--blue">
+                                <i data-lucide="wand-2" class="w-4 h-4"></i> Process text
+                            </button>
+                            <button id="readAllButton" disabled class="action-btn action-btn--coral">
+                                <i data-lucide="play-circle" class="w-4 h-4"></i> Start read-along
+                            </button>
+                            <button id="pauseResumeButton" disabled class="action-btn action-btn--gold hidden">
+                                <i data-lucide="pause" id="pauseIcon" class="w-4 h-4"></i> <span id="pauseText">Pause</span>
+                            </button>
+                            <button id="stopReadingButton" disabled class="action-btn action-btn--navy hidden">
+                                <i data-lucide="square" class="w-4 h-4"></i> Stop
+                            </button>
+                        </div>
+                    </div>
+
+                    <textarea id="paragraphInput" placeholder="Text loads here..."></textarea>
+
+                    <div id="readingDisplay">
+                        <p class="text-center italic mt-20" style="color:#c7cedb;">Select a lesson to begin.</p>
+                    </div>
+                </div>
+
+                <button id="takeQuizButton" disabled class="action-btn action-btn--coral action-btn-lg">
+                    <i data-lucide="clipboard-check" class="w-5 h-5"></i> Take the reading check (10 questions)
+                </button>
+
+                <div id="quizSection" class="hidden quiz-card">
+                    <div class="flex justify-between items-center mb-6 flex-wrap gap-2">
+                        <h3 class="font-display font-bold text-sm flex items-center gap-2" style="color: var(--ink);"><i data-lucide="clipboard-list" style="color: var(--coral);" class="w-5 h-5"></i> Reading comprehension check</h3>
+                        <span id="quizStoryTitle" class="text-[10px] font-bold px-3 py-1 rounded-full" style="background: #FDECE7; color: var(--coral-dark);"></span>
+                    </div>
+                    <div id="quizQuestions"></div>
+                    <button id="submitQuizButton" class="action-btn action-btn--coral action-btn-lg mt-2">
+                        <i data-lucide="send" class="w-4 h-4"></i> Submit my answers
+                    </button>
+                </div>
+
+                <div id="quizResultSection" class="hidden result-card">
+                    <p class="text-[10px] font-bold uppercase tracking-widest mb-1" style="color:#94a3b8;">Your result</p>
+                    <p id="quizScoreDisplay" class="font-display font-extrabold text-5xl mb-1" style="color: var(--green);">0/10</p>
+                    <p id="quizPercentDisplay" class="text-sm font-bold" style="color:#64748b;">0%</p>
+                    <div class="score-bar-track"><div id="scoreBarFill" class="score-bar-fill"></div></div>
+                    <p id="quizEncourage" class="font-display font-bold text-sm mb-3"></p>
+                    <p id="quizSubmitStatus" class="text-xs font-bold" style="color:#94a3b8;"></p>
+                </div>
+
+                <div id="reportSection" class="hidden report-card">
+                    <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+                        <h3 class="font-display font-bold text-xs flex items-center gap-2" style="color: var(--ink);"><i data-lucide="bar-chart-2" style="color: var(--portal-blue);" class="w-4 h-4"></i> Practice history</h3>
+                        <div class="flex items-center gap-6">
+                            <div class="text-right">
+                                <span id="reportTime" class="font-display text-xl font-extrabold block leading-none" style="color: var(--ink);">00:00</span>
+                                <span class="text-[9px] font-bold" style="color:#94a3b8;">Time spent</span>
+                            </div>
+                            <div class="text-right">
+                                <span id="totalWordCountDisplay" class="font-display text-xl font-extrabold block leading-none" style="color: var(--green);">0</span>
+                                <span class="text-[9px] font-bold" style="color:#94a3b8;">Words in story</span>
+                            </div>
+                            <div class="text-right">
+                                <span id="totalClicksCount" class="font-display text-3xl font-extrabold" style="color: var(--portal-blue);">0</span>
+                                <span class="text-[9px] font-bold block" style="color:#94a3b8;">Words needing help</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-[10px] font-bold mb-2" style="color:#94a3b8;">Words the student needed help with:</p>
+                    <div id="clickedWordsList" class="flex flex-wrap gap-2 mb-6"></div>
+                    <button id="resetButton" class="action-btn action-btn--ghost w-full">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Clear session history
+                    </button>
+                </div>
+
+                <button id="generateReportButton" class="action-btn action-btn--navy action-btn-lg">
+                    <i data-lucide="file-check" class="w-5 h-5" style="color: var(--gold);"></i> Generate student report
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="w-full text-center py-12 px-6" style="background: linear-gradient(135deg, var(--ink) 0%, var(--portal-blue-dark) 100%); color: rgba(255,255,255,0.75); border-top: 4px solid var(--gold);">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex items-center justify-center gap-2 mb-2">
+                <i data-lucide="book-open" class="w-4 h-4" style="color: var(--gold);"></i>
+                <h2 class="text-white font-display font-extrabold text-sm tracking-wide">Students Mastering and Achieving Reading Targets (S.M.A.R.T.)</h2>
+            </div>
+            <p class="text-xs italic mb-8 max-w-2xl mx-auto" style="color: rgba(255,255,255,0.55);">"The Effect of a Digital Reading Program in Addressing Frustration Readers at GSCNSSAT"</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6" style="border-top: 1px solid rgba(255,255,255,0.15);">
+                <div><p class="text-[10px] font-bold mb-1 uppercase tracking-widest" style="color: var(--gold);">Researcher</p><p class="text-sm font-semibold text-white">MICHAEL P. JAMIS</p></div>
+                <div><p class="text-[10px] font-bold mb-1 uppercase tracking-widest" style="color: var(--gold);">Researcher</p><p class="text-sm font-semibold text-white">LUNA VIVIENNE L. DIOMAMPO</p></div>
+                <div><p class="text-[10px] font-bold mb-1 uppercase tracking-widest" style="color: var(--gold);">Researcher</p><p class="text-sm font-semibold text-white">RHONIEL F. MEDRANO</p></div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // === PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE (ends in /exec) ===
+        const SHEET_WEBHOOK_URL = "PASTE_YOUR_URL_HERE";
+
+        const stories = [
+            {
+                title: "Plant Intelligence",
+                grade: "7",
+                content: `Plants are considered as life-support on Earth because of the countless things they provide to the entire biosphere. With their great significance and surprising qualities, many scientists were drawn to consider whether plants have feelings or possess some degree of intelligence. While many people believe that plants don't have any emotions as people do, plants do show signs of responding to their environment. At present, many studies have been conducted to discover the possibility that plants exhibit intelligence or at the least if they can feel. Many plant biologists and botanists use the term "neural activity" to describe plant behavior despite the fact that plants don't have brains or neurons. One remarkable study that demonstrates such activity of plants was done by Bohm J., et. al. (2016) (as cited by Trewavas, 2016) on a Venus fly-trap, a plant that captures and consumes a variety of small flying insects. After carefully examining the behavior of the said carnivorous plant, the researchers concluded that the Venus fly-trap can actually "count" up to five. Their assumption was based on the following observations: 1) As a fly-trap hair is touched the first time, the plant makes no response; 2) When a second hair is touched within 20 seconds, the open petals of the plant snap shut, trapping its potential meal; 3) As the insect begins to struggle, at the third touch of a plant hair, the plant again makes no response; 4) The same lack of response occurs the fourth time a plant hair is stimulated; and 5) Only with the fifth hair touch do the plant's digestive enzymes start the process of digesting its prey. The abovementioned observations can be interpreted as the fly-trap's knowledge on when best to attack prey and avoid false starts. These may not be an indication of a plant's intelligence that is comparable to humans but these show that plants somehow feel because of their response to their environment.`,
+                questions: [
+                    { q: "Why are plants considered as life-support on Earth?", options: ["They create habitats and shelter for selected organisms.", "They maintain the atmosphere by absorbing oxygen.", "They provide countless things to the entire biosphere.", "They supply food to all human beings except animals."], answer: 2 },
+                    { q: "Which of the following is stated in the first paragraph?", options: ["Plants can be considered intelligent but don't have the ability to talk.", "Plants can express their feelings but only when no one can see them.", "Plants can provide so many things to humans but are not sufficient.", "Plants can respond to their environment but do not have emotions."], answer: 3 },
+                    { q: "Which of the following makes a Venus fly-trap unique?", options: ["It can capture small insects.", "It can count up to five.", "It can digest its preys.", "It can release enzymes."], answer: 1 },
+                    { q: "What does \"neural activity\" mean in the text?", options: ["It describes the complex behavior of plants.", "It refers to the digestive process of animals.", "It refers to the process of how the brain works.", "It tells the way people think and act."], answer: 0 },
+                    { q: "Which of the following observations about Venus fly-traps is NOT true?", options: ["The plant is not affected by the insect's first touch.", "The plant doesn't respond until the second touch.", "The plant snaps shut its petal after the third touch.", "The plant starts digesting its prey on the fifth touch."], answer: 2 },
+                    { q: "Based on the behavior of the Venus fly-trap, what can indicate the intelligence of some plants?", options: ["Some plants can anticipate their prey's movement.", "Some plants can help in eliminating harmful insects.", "Some plants can identify when to catch their prey.", "Some plants can protect themselves from danger."], answer: 2 },
+                    { q: "Which of the following is NOT stated in the selection?", options: ["Plants like humans are capable of feeling.", "Plants like animals can engage in activities.", "Plants like humans possess intelligence.", "Plants like humans respond to the environment."], answer: 1 },
+                    { q: "What is the author's purpose in writing the text?", options: ["To amuse the readers about what Venus fly-traps can do", "To compare and contrast plants and human beings", "To inform the readers about a specific trait of plants.", "To persuade the readers to take care of plants"], answer: 2 },
+                    { q: "How did the author accomplish his/her purpose?", options: ["By comparing plants and humans", "By describing plants and humans", "By enumerating traits of plants", "By reporting results of studies"], answer: 3 },
+                    { q: "What main idea is expressed in the selection?", options: ["Plants are living things that are locomotive and responsive to the environment.", "Plants are living things that have feelings and possess some degree of intelligence.", "Plants are living things that possess emotion and the ability to reason and feel.", "Plants are living things that use different strategies to lure prey into their traps."], answer: 1 }
+                ]
+            },
+            {
+                title: "Get to Know PAGASA's Rainfall Warnings",
+                grade: "7",
+                content: `The Philippines is visited by an average of 20 typhoons a year. Some are very strong, bringing heavy rains and causing floods in many areas. In 2012, PAGASA started using color-coded rainfall advisories. These were classified into three levels: Yellow, Orange, and Red. The Yellow Rainfall Warning means that there will be a heavy rainfall of 7.5 to 15 mm in an hour, which may continue for the next two hours. Flood is possible in affected areas. The public are advised to check weather bulletin updates. The Orange Rainfall Warning means that there will be intense rainfall of 15 to 30mm in an hour, which may continue for the next two hours. Flood is expected in affected areas. The residents must be ready for possible evacuation. The Red Rainfall Warning means that there will be torrential rainfall of more than 30mm in an hour, which may continue for the next two hours. It is also given when a rainfall of more than 65mm continues for three hours. Serious flooding is expected. The residents should start evacuating. Through these color-coded rainfall warnings, the citizens become better prepared for typhoons.`,
+                questions: [
+                    { q: "What can be expected when a YELLOW rainfall warning is raised?", options: ["There will be continuous heavy rainfall for an hour.", "There will be a strong typhoon in the next two hours.", "There would be strong winds together with the rainfall.", "There will be evacuation of people from flooded areas."], answer: 0 },
+                    { q: "In which rainfall warning should residents start evacuating?", options: ["orange", "red", "violet", "yellow"], answer: 1 },
+                    { q: "How much rainfall is expected in an hour when described as \"intense\"?", options: ["less than 7.5 mm or below 2 gallons of rain", "7.5 to 15 mm equivalent to 2 gallons of rain", "15 to 30mm equivalent to 4 to 8 gallons of rain", "more than 30mm or 8 gallons or more of rain"], answer: 2 },
+                    { q: "What do the three color-coded rainfall advisories of PAGASA predict?", options: ["the heavy winds", "the need for evacuation", "the threat of flooding", "the typhoon signals"], answer: 2 },
+                    { q: "What is the difference in the three color-coded rainfall advisories of PAGASA?", options: ["amount of rainfall there would be", "height of the flood from the rainfall", "number of hours it continues to rain", "strength of wind brought by the rain"], answer: 0 },
+                    { q: "Which of the following is true about PAGASA's color-coded rainfall warnings?", options: ["Classes will automatically be suspended when a rainfall warning is issued.", "The darker the color of the rainfall advisory, the more dangerous the weather is.", "There is a strong storm or typhoon coming every time a rainfall advisory is raised.", "When a rainfall advisory is raised, people are expected to evacuate immediately."], answer: 3 },
+                    { q: "According to the article, what should be done when the yellow rainfall warning is raised?", options: ["Leave homes immediately and go to the nearest evacuation center.", "Listen to the next weather update and act based on the weather report.", "Start packing most essential things and be ready to evacuate.", "Stay at home and wait for PAGASA to raise a typhoon signal in the area."], answer: 1 },
+                    { q: "Under what topic will PAGASA's rainfall warning most likely be discussed?", options: ["Atmosphere", "Climate", "Temperature", "Weather"], answer: 3 },
+                    { q: "Which important information is NOT mentioned in the text?", options: ["the amount of rainfall in an area for the next two hours", "the government agency issuing the color-coded rainfall advisories", "the activities the residents are expected to do for each rainfall advisory", "emergency numbers to contact when there's a need for evacuation"], answer: 3 },
+                    { q: "How did the author organize the ideas in the selection?", options: ["by describing the steps to be taken for specific rainfall warning", "by enumerating the different types of color-coded rainfall warning", "by identifying what cause the amount of rainfall for each color code", "by suggesting what actions to take for each rainfall warning"], answer: 1 }
+                ]
+            },
+            {
+                title: "Africa's Plea",
+                grade: "8",
+                content: `By Roland Tombekai Dempster
+
+I am not you but you will not give me chance, will not let me be me. "If I were you" - but you know I am not you, yet you will not let me be me. You meddle, interfere in my affairs as if they were yours and you were me. You are unfair, unwise, foolish to think that I can be you, talk, act and think like you. God made me me. He made you you. For God's sake let me be me.`,
+                questions: [
+                    { q: "Who is speaking in the poem?", options: ["child", "country", "man", "people"], answer: 1 },
+                    { q: "Which has the same meaning as the word meddle in the third stanza?", options: ["not accepted", "not allowed", "not friendly", "not recognized"], answer: 1 },
+                    { q: "Which of the following are the meanings of the word plea as expressed in the poem?\nI. a call to change values\nII. a demand for acceptance\nIII. a request for appreciation\nIV. a request to be treated equality\nV. an appeal for unity", options: ["I, II, and III", "I, IV, and V", "II, III, and IV", "III, IV, and V"], answer: 2 },
+                    { q: "Which social issue is NOT tackled in the poem?", options: ["discrimination", "equality", "independence", "poverty"], answer: 3 },
+                    { q: "In which stanza is the uniqueness of each individual implied?", options: ["stanza 2", "stanza 3", "stanza 4", "stanza 5"], answer: 3 },
+                    { q: "What is the general tone of the poem?", options: ["angry", "fearful", "gloomy", "hurt"], answer: 0 },
+                    { q: "Which of the following sentences does NOT state the theme of the poem?", options: ["We are all unique human beings.", "We are equal in the eyes of God.", "We are the master of our lives.", "We can choose how to live our lives."], answer: 1 },
+                    { q: "What did the author use in expressing the theme of the poem?", options: ["dialogues", "imagery", "repetitions", "symbolisms"], answer: 0 },
+                    { q: "To whom is the writer directing this message?", options: ["Those who criticize people that they dislike.", "Those who destroy the reputation of others", "Those who discriminate colored people.", "Those who want to control other people."], answer: 3 },
+                    { q: "What type of poem is this poem?", options: ["Dramatic poem because it can be acted.", "Elegiac poem because it expresses sadness.", "Lyric poem because it expresses feelings.", "Narrative poem because it tells a story."], answer: 2 }
+                ]
+            },
+            {
+                title: "Dinagsa Festival: Colorful Hues of Gaiety",
+                grade: "8",
+                content: `By Kristine Mae J. Lacson
+
+Traditionally known as the Capital of the World's Festivities, Philippines is rich in festivals with more than 42,000 known festivities, a testament of how Filipinos love colorful celebrations. At the northern tip of the Negros Island is Cadiz City where the vibrant and famous Dinagsa Festival has successfully earned the coastal city a distinctive spot on the map of Philippine festivities.
+Dinagsa Festival stemmed from Ati-Atihan Festival, then a brainchild of the parish priests to strategically lead the people to pay homage to Sto. Niño de Cadiz, eventually diverting them from engaging in cockfighting. As there were Ati-Atihan Festivals in other localities, the city government changed Cadiz Ati-Atihan Festival to Dinagsa Festival, from the local term "dagsa" that means to come together. This was inspired by the historical event on May 7, 1967 when 12 sperm whales were washed ashore, thus Cadiz has been known as the City of Whales.
+Just like the whales that were washed ashore in numbers, people from all walks of life, locals and foreigners alike, come in throngs to experience the revelry of the Dinagsa Festival every January. The streets are a sea of sweet memories of colorfully painted faces beaming with merriment as they enjoy the "Lamhitanay sa Dalan", a joyous practice of staining people's faces with multi-colored water-based paint while roaming and street dancing around the city from dusk until dawn. The year-starter celebration then becomes more than just an event to witness warriors in black body paint and garbed in colorful tribal costumes dance along the streets to the loud rhythmic drumbeats. It has also become a reason to go back to one's beloved hometown with alumni celebrating school reunions as part of the city fiesta.
+With its deep religious and cultural roots, Dinagsa Festival highlights not only the tourism and economic development of the city, but also the familial season to reunite with loved ones and once again pay homage with the joyful cries, "Viva! Viva! Pit Señor!"`,
+                questions: [
+                    { q: "In the first paragraph, which of the following has the same meaning as \"vibrant\"?", options: ["celebration", "coastal", "colorful", "festivities"], answer: 2 },
+                    { q: "Who started the Dinagsa Festival?", options: ["Ati-Atihan", "cockfighters", "local people", "the priests"], answer: 3 },
+                    { q: "Since Cadiz is a coastal city, what could be one of its primary sources of income?", options: ["fishing", "farming", "mining", "tourism"], answer: 0 },
+                    { q: "Which of the following will NOT benefit from the holding of the Dinagsa Festival?", options: ["business", "celebrations", "religion", "tourism"], answer: 2 },
+                    { q: "Which of the following is NOT stated in the selection?", options: ["Festivals bring income to communities.", "The Dinagsa Festival is a well-attended festival.", "The Filipinos are extremely religious people.", "Tourists love the festivities in the Philippines."], answer: 0 },
+                    { q: "Why do you think the author compared the festival crowd to the whales that landed on the city's shore?", options: ["Because Cadiz is known as the City of Whales", "Because it was inspired by a historical event", "Because locals and foreigners enjoy the festival", "Because people from all walks of life attend the festival"], answer: 3 },
+                    { q: "What does the author imply about the festival being a familial season?", options: ["Guests come in families.", "Families celebrate the festival.", "Families come together.", "Family ties are strengthened."], answer: 3 },
+                    { q: "How could the festival boost the local economy?", options: ["There would be news about the festival.", "There would be live coverage of the festival.", "There would be celebrities joining the festival.", "There would be more product sales."], answer: 3 },
+                    { q: "Which of the following statements expressed an opinion of the author?", options: ["Dinagsa Festival is a year-starter celebration.", "Dinagsa Festival stemmed from Ati-Atihan Festival.", "Filipinos love festivities and colorful celebrations.", "Lamhitanay sa Dalan is practice of staining people's faces."], answer: 2 },
+                    { q: "How did the author organize the ideas in the selection?", options: ["by enumerating important information about the festival", "by giving examples of the benefits of the Dinagsa Festival", "by identifying the cause and effect of the Dinagsa Festival", "by listing the events that lead to the celebration of the festival"], answer: 3 }
+                ]
+            },
+            {
+                title: "Depression: How Serious Can It Get?",
+                grade: "9",
+                content: `Depression is a common mental disorder, and anyone can suffer from it. As the leading cause of poor health globally, the World Health Organization (WHO) explains in an article titled "Depression" about many unknown characteristics of depression that most people are unaware of.
+First, it is characterized by sadness or displeasure. Many people find themselves losing interest in something they previously enjoyed doing and sometimes wonder why. In fact, these instances show why a lot of people get burned out from their jobs or hobbies easily and tend to fail afterwards. It is also discussed that someone who manifests depression can have sleep disturbances and loss of appetite that can lead to serious health conditions. Lastly, the article describes how common tiredness and poor concentration can be observed from someone who is depressed. Among all its characteristics, these are the usual symptoms that we see from people who suffer depression. The WHO encourages everyone to be aware of these characteristics and aid those who show these effects as depression can be long-lasting or recurrent and can dramatically affect a person's ability to function and live a rewarding life.`,
+                questions: [
+                    { q: "How is depression described in the text?", options: ["a behavioral problem", "a physical problem", "a mental problem", "an emotional problem"], answer: 2 },
+                    { q: "Which of the following describes the function of the World Health Organization?", options: ["collects sensitive information about individual's health record", "disseminates information on the latest about science and technology", "monitors all the operations of hospitals in the world", "provides leadership and guidance on global health issues"], answer: 3 },
+                    { q: "What usual symptoms of depression were mentioned in the article?", options: ["depression, lack of sleep and stress eating", "displeasure, good appetite, and lack of sleep", "sadness, loss of appetite, and poor concentration", "self-interest, sleep disturbance, and poor eyesight"], answer: 2 },
+                    { q: "Why is someone with depression unable to sleep and eat properly?", options: ["They always eat and sleep.", "They can't stop thinking.", "They can't swallow food.", "They never stop crying."], answer: 1 },
+                    { q: "A lot of people get burned out from their jobs easily. What does a person experience when he/she gets burned out?", options: ["chemical disintegration", "de-stressing activity", "mental breakdown", "peer pressure"], answer: 2 },
+                    { q: "According to WHO, what can we do for those who have the symptoms of depression?", options: ["be aware of them", "encourage them", "treat them kindly", "try to help them"], answer: 3 },
+                    { q: "How did the author organize the ideas in the selection?", options: ["By describing the solution to depression", "By enumerating the steps in fighting depression", "By identifying the cause and effect of depression", "By listing the characteristics of depression"], answer: 3 },
+                    { q: "Why does depression lead to serious health conditions?", options: ["because it breaks someone's good habits and healthy lifestyle", "because it deprives someone of rest and nourishment", "because it makes someone overthink and overanalyze", "because it leaves someone with no other choice"], answer: 1 },
+                    { q: "Which of the following is relevant to the discussion of depression in the article but is NOT mentioned?", options: ["how to avoid being depressed", "how to cure people with depression", "how to report depressed people", "how to treat people with depression"], answer: 0 },
+                    { q: "What is the function of the last paragraph?", options: ["It calls for collective action on depression.", "It discusses the main idea of the selection.", "It presents conclusions about depression.", "It summarizes the article on depression."], answer: 0 }
+                ]
+            },
+            {
+                title: "Tsunamis",
+                grade: "9",
+                content: `[1] A tsunami is a series of ocean waves that sends surges of water, sometimes reaching heights of over 100 feet (30.5 meters), onto land. These walls of water can cause widespread destruction when they crash ashore.
+[2] These awe-inspiring waves are typically caused by large, undersea earthquakes at tectonic plate boundaries. When the ocean floor at a plate boundary rises or falls suddenly, it displaces the water above it and launches the rolling waves that will become a tsunami.
+[3] Most tsunamis–about 80 percent–happen within the Pacific Ocean's "Ring of Fire," a geologically active area where tectonic shifts make volcanoes and earthquakes common. Tsunamis may also be caused by underwater landslides or volcanic eruptions. They may even be launched, as they frequently were in Earth's ancient past, by the impact of a large meteorite plunging into an ocean.
+[4] Tsunamis race across the sea at up to 500 miles (805 kilometers) an hour—about as fast as a jet airplane. At that pace, they can cross the entire expanse of the Pacific Ocean in less than a day. And their long wavelengths mean they lose very little energy along the way.
+[5] In deep ocean, tsunami waves may appear only a foot or so high. But as they approach shoreline and enter shallower water they slow down and begin to grow in energy and height. The tops of the waves move faster than their bottoms do, which causes them to rise precipitously.
+[6] A tsunami's trough, the low point beneath the wave's crest, often reaches shore first. When it does, it produces a vacuum effect that sucks coastal water seaward and exposes harbor and sea floors. This retreating of sea water is an important warning sign of a tsunami, because the wave's crest and its enormous volume of water typically hit shore five minutes or so later. Recognizing this phenomenon can save lives.
+[7] A tsunami is usually composed of a series of waves, called a wave train, so its destructive force may be compounded as successive waves reach shore. People experiencing a tsunami should remember that the danger may not have passed with the first wave and should await official word that it is safe to return to vulnerable locations.
+[8] Some tsunamis do not appear on shore as massive breaking waves but instead resemble a quickly surging tide that inundates coastal areas.
+[9] The best defense against any tsunami is early warning that allows people to seek higher ground. The Pacific Tsunami Warning System, a coalition of 26 nations headquartered in Hawaii, maintains a web of seismic equipment and water level gauges to identify tsunamis at sea. Similar systems are proposed to protect coastal areas worldwide.`,
+                questions: [
+                    { q: "What is the importance of the first paragraph?", options: ["It enumerates examples of tsunami.", "It explains the causes of tsunami.", "It presents the effects of tsunami.", "It provides a definition of tsunami."], answer: 3 },
+                    { q: "Which of the following may cause tsunamis?\nI. underwater landslides or volcanic eruptions\nII. a whirlpool of water that sucks water seaward\nIII. force of compounded and successive waves\nIV. impact of a meteorite plunged into the ocean", options: ["I & II", "I & IV", "II & III", "III & IV"], answer: 1 },
+                    { q: "What does 'Ring of Fire' mean?", options: ["It refers to a span of area identified with active volcanoes and frequent earthquakes.", "It refers to substances combined chemically with oxygen to give out heat and smoke.", "It refers to a sudden shaking of the ground that sometimes causes great destruction.", "It refers to a vent in the crust of the Earth from which issue eruptions of molten rock."], answer: 0 },
+                    { q: "Which of the following is NOT directly explained in the selection?", options: ["Why tsunamis are awe-inspiring", "Why tsunamis are phenomenal", "Why most tsunamis are very fast", "Why tsunamis have lots of energy"], answer: 0 },
+                    { q: "Which of the following paragraph contains the topic sentence?", options: ["Paragraph 1", "Paragraph 2", "Paragraph 5", "Paragraph 8"], answer: 0 },
+                    { q: "Which of the following is true about tsunamis?", options: ["The tsunami's trough would often reach the shore first.", "The waves appear higher in deeper parts of the ocean.", "Tsunami waves are destructive because of its slow pace.", "Tsunami waves are only a foot high in the shallow parts."], answer: 0 },
+                    { q: "What is the purpose of the last paragraph?", options: ["to offer solutions", "to persuade people to act", "to provide conclusions", "to summarize the ideas"], answer: 0 },
+                    { q: "What does the word expanse mean in the sentence? \"At that pace, they can cross the entire expanse of the Pacific Ocean in less than a day.\"", options: ["exclusive zone", "close region", "open portion", "wide spread"], answer: 3 },
+                    { q: "What is the purpose of the author in writing the text?", options: ["To describe a natural phenomenon like tsunamis", "To express opinions about tsunamis", "To provide information about tsunamis", "To warn people against the danger of tsunamis"], answer: 2 },
+                    { q: "Which of the following can be used as an alternative title of the selection?", options: ["Causes of Tsunamis", "How Tsunamis Are Formed", "The Effects of Tsunami", "The Nature of Tsunamis"], answer: 1 }
+                ]
+            },
+            {
+                title: "Arachne",
+                grade: "10",
+                content: `From Greek Mythology
+
+In the kingdom of Lydia (an ancient area of Anatolia, which is in modern-day Turkey) there lived a girl, named Arachne. She was very good at weaving, and her reputation for embroidery soon spread. Athena, the goddess of (among many other things) spinners and embroiderers, was considered by many to have been Arachne's tutor, but Arachne refused to give the goddess any credit for having taught her how to weave so beautifully.
+Indeed, so sure of her own weaving abilities was she, that Arachne even boldly challenged Athena to a weaving contest. Athena turned up in disguise as an old woman, advising the young weaver to be more modest about her achievements. Arachne was scornful, so Athena – angered by the girl's arrogance – revealed her true identity and accepted the challenge Arachne had proposed.
+The two competitors chose the subject of their tapestries with care: while Athena showed the twelve Olympian gods in hers, she wove in a little detail in each of the four corners, showing what happens to uppity mortals who think they can defy the gods. Conversely, Arachne depicted the most outrageous things the gods had got up to – in particular, Zeus' track record in 'seducing' or abducting young maidens to satisfy his own lust.
+Arachne's work was perfect, and Athena had to admit it. But, being a goddess, she didn't have to like it. What's the use of being a deity if you can't throw your weight about from time to time? So, Athena tore up Arachne's beautiful work and struck her down. Arachne was so downcast by this, that she hanged herself.
+Athena was vindictive and refused to give Arachne peace in death. So, she turned the dead girl into a spider, so that she would be doomed to weave and spin for all time.`,
+                questions: [
+                    { q: "\"Athena – angered by the girl's arrogance – revealed her true identity.\" Which of the following words found in Paragraph 2 is the opposite of the underlined word (arrogance)?", options: ["bold", "disguise", "modest", "scornful"], answer: 2 },
+                    { q: "What does Arachne's weaving show?", options: ["abuses made by the gods", "naughtiness of the gods", "rudeness of the gods", "weaknesses of the gods"], answer: 3 },
+                    { q: "What does the selection intend to accomplish?", options: ["To explain a natural phenomenon", "To narrate the origin of something", "To teach an important lesson", "To tell an exaggerated story"], answer: 1 },
+                    { q: "Why did Athena become angry with Arachne?", options: ["Arachne was a great weaver of a tapestry.", "Arachne's beauty is beyond compare.", "Arachne's creations are better than hers.", "Arachne's works are expensive and rare."], answer: 2 },
+                    { q: "Which of the following is NOT a characteristic of Arachne?", options: ["Confident. She believed that she could defeat Athena at weaving.", "Disobedient. She did not follow Athena's advice to be humble.", "Talented. She was exceptionally good at weaving beautiful tapestries.", "Ungrateful. She was not thankful to Athena for teaching her to weave."], answer: 1 },
+                    { q: "Which of the following is similar in purpose to this selection?", options: ["Fable", "Folktale", "Legend", "Parable"], answer: 2 },
+                    { q: "Which of the following best describes the theme?", options: ["acceptance, anger, pride", "humility, obedience, power", "pride, humility, power", "vengeance, anger, pride"], answer: 1 },
+                    { q: "Which of the following is implied about the Greek gods and goddesses?", options: ["They are immortal and possess powers.", "They are immortal but very emotional.", "They assert their power over humans.", "They feel superior over human beings."], answer: 3 },
+                    { q: "What lesson does the selection intend to teach?", options: ["That talent alone guarantees a happy ending", "That it is wiser to stay humble rather than boast about one's talent", "That the gods are always fair to mortals", "That weaving contests should be avoided"], answer: 1 },
+                    { q: "Which of the following does NOT apply to the selection?", options: ["All our talents are given to us by God.", "Better to be humble than to be talented.", "We should be humble even in victory.", "We should know how to accept defeat."], answer: 2 }
+                ]
+            },
+            {
+                title: "Mental Health, Too",
+                grade: "10",
+                content: `Prevention is better than cure. Mental health comprises our emotional, psychological, and social well-being. It impacts how we feel, think, and behave every day. Additionally, it is our capacity to make choices, form connections, and influence the environment in which we live in. It is a fundamental human right. Furthermore, it is essential for our socioeconomic and personal growth.
+Mental health is important because it affects everything. By taking care of it, we can be resilient and recover quickly from anything. Anyone out there can have a miserable day, but that does not necessarily indicate that their life is horrible. The important thing is how we handle it and sustain our mental well-being.
+When our minds are in good shape, we appreciate our lives, our surroundings, and the people that inhabit them. We can take any risks, learn new things, and innovate. We will be better equipped to handle challenging situations in both our work and personal life. We may experience the pain and frustration that can come from a loved one's passing, a job loss, and other tough situations, but eventually, we are able to move on and resume enjoying our lives.
+Mental illness is common. It can happen at any age, from childhood to later in adult lives, although most cases start at a younger age. It can have short-term or long-term impacts. Besides this, it is also possible to experience many mental health disorders simultaneously.
+You may be more likely to have a mental disorder if you have certain risk factors, such as: childhood abuse, trauma, or neglect, experiencing discrimination and racism, losing someone close to you, severe or long-term stress, domestic violence, bullying or other abuse as an adult, having a long-term physical health condition, unemployment or losing your job, and other lifestyle factors.
+According to the World Health Organization (WHO), among Filipino children aged 5 to 15, 10% to 15% are affected by mental health problems and 6.8% of Filipino students aged 13 to 17 have attempted suicide at least once within a year before the 2015 Global School-based Student Health survey.
+On the other hand, untreated mental illness can cause serious issues with emotion, behavior, and physical health. These are some of the problems that might arise from mental illness: Unhappiness and decreased enjoyment of life; family conflicts; social isolation; problems with alcohol and other drugs; missed work or school; and the worst, suicide.
+To prevent this, we should make social connections, talk to someone you trust, get enough sleep, eat a healthy diet, get physical exercise, learn new skills, meditate daily, and ask for help when needed.
+The most priceless gift that God has given us is our life. We should not waste our lives on trivial matters. Let's also be mindful of others' concerns by being empathetic or compassionate and following up with them as frequently as possible. Let's work together to spread the word about this issue so that we can guard our loved ones and families.`,
+                questions: [
+                    { q: "Which of the following statements defines mental health?", options: ["It enables one to create positive interpersonal relationships.", "It is the ability to make sound decisions and form connections.", "It is the condition of the body resulting from regular physical activity.", "It refers to active participation in organized social organizations."], answer: 1 },
+                    { q: "Which of the following pertain/s to risk factors to having a mental disorder?\nI. child abuse\nII. trauma or neglect\nIII. learning new skill\nIV. making social connections\nV. experiencing discrimination\nVI. losing someone close to you", options: ["I, II, III & IV", "I, II, III & V", "I, II, VI & V", "I, II, V & VI"], answer: 3 },
+                    { q: "Which of the following situations is influenced by a mind in good shape?", options: ["Being dependent on comfort food", "Getting compliments from peers", "Identifying de-stressing activity", "Isolating self from social media"], answer: 2 },
+                    { q: "Which mental health factor is depicted in the given situation? \"A person suffers from physical pain due to the months of beating done by the spouse.\"", options: ["child abuse", "domestic violence", "long-term stress", "unemployment"], answer: 1 },
+                    { q: "Which of the following completes the analogy? Enough sleep : Healthy mind :: ___________ : Mental illness", options: ["lack of sleep", "over-eating", "drug abuse", "unhealthy diet"], answer: 2 },
+                    { q: "What does empathetic mean in the following sentence? \"Let's also be mindful of others' concerns by being empathetic or compassionate and following up with them as frequently as possible.\"", options: ["appreciative", "encouraging", "responsible", "understanding"], answer: 3 },
+                    { q: "Which of the following is true based on the text?", options: ["Untreated mental illness causes serious issues with emotion and physical health.", "It is also impossible to experience many mental health disorders simultaneously.", "Increased enjoyment of life and closed family ties arise from one's mental illness.", "Mental wellness is achieved from family conflicts, social isolation, and discrimination."], answer: 0 },
+                    { q: "What is the purpose of the last paragraph of the text?", options: ["to call for action about the issue of mental health", "to further explain the issue about mental health", "to provide conclusions about mental health", "to summarize the article about mental health"], answer: 0 },
+                    { q: "How did the writer organize the ideas about mental health?", options: ["by describing steps on how to take care of mental health", "by enumerating examples of the effect of mental disorder", "by listing important information about mental health", "by providing suggestions on how to address mental health issues"], answer: 2 },
+                    { q: "What is the general tone of the article?", options: ["anxious- worried about the issue", "didactic- intends to teach about the issue", "sad- expressing grief about the issue", "serious- treats the issue seriously"], answer: 1 }
+                ]
+            }
+        ];
+
+        const select = document.getElementById('storySelect');
+        const display = document.getElementById('readingDisplay');
+        const tooltip = document.getElementById('tooltip');
+        const timerText = document.getElementById('timerDisplay');
+        const synth = window.speechSynthesis;
+        let wordSpans = [];
+        let clickedWords = [];
+        let definitionCache = {};
+        let currentStoryWordCount = 0;
+        let currentStoryIndex = null;
+        let quizAnswers = [];
+        let lastScore = null;
+        let hoverRequestId = 0;
+
+        // Safe wrapper: the Lucide icon CDN can fail to load (blocked network, ad
+        // blocker, offline preview, etc). If we call lucide.createIcons() directly
+        // in that case it throws and silently kills whatever click handler called
+        // it — e.g. the Process button would stop working entirely. This wrapper
+        // makes icon rendering optional instead of a hard dependency.
+        function refreshIcons() {
+            if (window.lucide && typeof lucide.createIcons === 'function') {
+                lucide.createIcons();
+            }
+        }
+
+        // Timer Logic
+        let seconds = 0;
+        let timerInterval = null;
+
+        function updateTimer() {
+            seconds++;
+            const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const secs = (seconds % 60).toString().padStart(2, '0');
+            timerText.innerText = `${mins}:${secs}`;
+        }
+
+        function startTimer() { if (!timerInterval) timerInterval = setInterval(updateTimer, 1000); }
+        function pauseTimer() { clearInterval(timerInterval); timerInterval = null; }
+        function resetTimer() { pauseTimer(); seconds = 0; timerText.innerText = "00:00"; }
+
+        // Refresh Fix
+        window.onbeforeunload = () => synth.cancel();
+
+        // Populates the story dropdown with only the stories that match the chosen
+        // grade level. Option values stay as the story's real index in the full
+        // `stories` array, so every other place that does stories[select.value]
+        // or stories[currentStoryIndex] keeps working without any changes.
+        function populateStoriesForGrade(grade) {
+            select.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = "";
+            placeholder.textContent = grade ? "Choose a story to begin" : "Select a grade level first";
+            select.appendChild(placeholder);
+
+            if (!grade) { select.disabled = true; return; }
+
+            stories.forEach((s, i) => {
+                if (s.grade === grade) {
+                    const opt = document.createElement('option');
+                    opt.value = i; opt.textContent = s.title;
+                    select.appendChild(opt);
+                }
+            });
+            select.disabled = false;
+        }
+
+        // Start with no grade chosen, so the story list is empty until the student picks one.
+        populateStoriesForGrade("");
+
+        document.getElementById('studentGrade').onchange = (e) => {
+            populateStoriesForGrade(e.target.value);
+
+            // A different grade means a different set of stories, so clear out
+            // whatever was loaded from the previous grade rather than leaving a
+            // stale story, quiz, or tracker state on screen.
+            synth.cancel();
+            resetTrackerUI();
+            resetTimer();
+            resetQuizUI();
+            currentStoryIndex = null;
+            document.getElementById('paragraphInput').value = "";
+            display.innerHTML = '<p class="text-center italic mt-20" style="color:#c7cedb;">Select a lesson to begin.</p>';
+            document.getElementById('readAllButton').disabled = true;
+            document.getElementById('takeQuizButton').disabled = true;
+        };
+
+        function loadVoices() {
+            const voices = synth.getVoices();
+            document.getElementById('voiceSelect').innerHTML = voices.map((v, i) => `<option value="${i}">${v.name}</option>`).join('');
+        }
+        function getSelectedVoice() {
+            // Falls back to the browser's default voice if none is selected/available yet,
+            // instead of silently passing an invalid index to SpeechSynthesisUtterance.
+            const voices = synth.getVoices();
+            const idx = parseInt(document.getElementById('voiceSelect').value, 10);
+            return voices[idx] || null;
+        }
+        speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+
+        select.onchange = () => { if(select.value !== "") { document.getElementById('paragraphInput').value = stories[select.value].content; document.getElementById('processButton').click(); } };
+
+        async function getDef(word) {
+            const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+            if (clean.length < 3) return null;
+            if (clean in definitionCache) return definitionCache[clean]; // already looked up (even if it was "not found") — skip the network call
+            try {
+                const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${clean}`);
+                const data = await res.json();
+                const d = data[0].meanings[0].definitions[0].definition;
+                definitionCache[clean] = d;
+                return d;
+            } catch (e) {
+                definitionCache[clean] = null;
+                return null;
+            }
+        }
+
+        // Looks up every distinct word in the story in the background, right after
+        // Process runs, so definitions are already cached by the time the student
+        // hovers — turning most hovers from "wait for a network request" into an
+        // instant lookup. Runs several requests in parallel (not all at once) to
+        // stay polite to the free dictionary API.
+        function prefetchDefinitions(text) {
+            const words = [...new Set(
+                text.split(/\s+/)
+                    .map(w => w.toLowerCase().replace(/[^a-z]/g, ''))
+                    .filter(w => w.length >= 3)
+            )];
+            const CONCURRENCY = 6;
+            let cursor = 0;
+            async function worker() {
+                while (cursor < words.length) {
+                    const w = words[cursor++];
+                    if (!(w in definitionCache)) await getDef(w);
+                }
+            }
+            for (let i = 0; i < CONCURRENCY; i++) worker();
+        }
+
+        document.getElementById('processButton').onclick = () => {
+            synth.cancel();
+            resetTrackerUI();
+            resetTimer();
+            resetQuizUI();
+            currentStoryIndex = select.value !== "" ? parseInt(select.value) : null;
+            const text = document.getElementById('paragraphInput').value;
+
+            // Calculate Total Word Count
+            currentStoryWordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+
+            display.innerHTML = ''; wordSpans = [];
+            text.split(/(\s+)/).forEach(t => {
+                if (t.trim() === "") {
+                    display.appendChild(document.createTextNode(t));
+                } else {
+                    const span = document.createElement('span');
+                    span.textContent = t; span.className = 'word-item';
+
+                    span.onmouseover = async (e) => {
+                        const requestToken = ++hoverRequestId;
+                        tooltip.style.display = 'block';
+                        tooltip.style.left = e.pageX + 10 + 'px'; tooltip.style.top = e.pageY + 10 + 'px';
+
+                        const clean = t.toLowerCase().replace(/[^a-z]/g, '');
+                        if (clean in definitionCache) {
+                            // Already prefetched or previously looked up — show it immediately, no network wait.
+                            const cached = definitionCache[clean];
+                            tooltip.innerHTML = cached ? `<b>${t.trim()}:</b> ${cached}` : "No definition found.";
+                            return;
+                        }
+
+                        tooltip.innerHTML = '<span class="italic" style="opacity:.7; font-size:10px;">Defining...</span>';
+                        const d = await getDef(t);
+                        if (requestToken !== hoverRequestId) return; // a newer hover has already started; ignore this stale result
+                        tooltip.innerHTML = d ? `<b>${t.trim()}:</b> ${d}` : "No definition found.";
+                    };
+                    span.onmouseout = () => tooltip.style.display = 'none';
+
+                    span.onclick = () => {
+                        wordSpans.forEach(s => s.classList.remove('clicked-active'));
+                        span.classList.add('clicked-active');
+                        synth.cancel();
+                        const u = new SpeechSynthesisUtterance(t);
+                        u.voice = getSelectedVoice();
+                        u.rate = parseFloat(document.getElementById('speedSelect').value);
+                        u.onend = () => span.classList.remove('clicked-active');
+                        synth.speak(u);
+                        clickedWords.push(t.replace(/[^\w]/g, ''));
+                    };
+                    display.appendChild(span);
+                    wordSpans.push(span);
+                }
+            });
+            document.getElementById('readAllButton').disabled = false;
+            document.getElementById('takeQuizButton').disabled = (currentStoryIndex === null);
+
+            prefetchDefinitions(text);
+        };
+
+        // TRACKER CONTROLS
+        document.getElementById('readAllButton').onclick = () => {
+            synth.cancel();
+            resetTimer();
+            startTimer();
+            const fullText = document.getElementById('paragraphInput').value;
+            const currentUtterance = new SpeechSynthesisUtterance(fullText);
+            currentUtterance.voice = getSelectedVoice();
+            currentUtterance.rate = parseFloat(document.getElementById('speedSelect').value);
+
+            currentUtterance.onboundary = (e) => {
+                if(e.name === 'word') {
+                    const currentWordIdx = (fullText.substring(0, e.charIndex).match(/\S+/g) || []).length;
+                    wordSpans.forEach(s => s.classList.remove('highlight'));
+                    if(wordSpans[currentWordIdx]) wordSpans[currentWordIdx].classList.add('highlight');
+                }
+            };
+
+            currentUtterance.onend = () => { resetTrackerUI(); pauseTimer(); };
+
+            synth.speak(currentUtterance);
+            showControls(true);
+        };
+
+        document.getElementById('pauseResumeButton').onclick = () => {
+            if (synth.speaking && !synth.paused) {
+                synth.pause(); pauseTimer();
+                document.getElementById('pauseText').innerText = "Resume";
+                document.getElementById('pauseIcon').innerHTML = '<path d="M5 3l14 9-14 9V3z"/>';
+            } else if (synth.paused) {
+                synth.resume(); startTimer();
+                document.getElementById('pauseText').innerText = "Pause";
+                document.getElementById('pauseIcon').innerHTML = '<path d="M6 4h4v16H6zM14 4h4v16h4z"/>';
+                refreshIcons();
+            }
+        };
+
+        document.getElementById('stopReadingButton').onclick = () => { synth.cancel(); resetTrackerUI(); resetTimer(); };
+
+        function showControls(isActive) {
+            document.getElementById('readAllButton').classList.toggle('hidden', isActive);
+            document.getElementById('pauseResumeButton').classList.toggle('hidden', !isActive);
+            document.getElementById('stopReadingButton').classList.toggle('hidden', !isActive);
+            document.getElementById('pauseResumeButton').disabled = !isActive;
+            document.getElementById('stopReadingButton').disabled = !isActive;
+            refreshIcons();
+        }
+
+        function resetTrackerUI() {
+            wordSpans.forEach(s => s.classList.remove('highlight'));
+            showControls(false);
+        }
+
+        // === COMPREHENSION QUIZ ===
+        function resetQuizUI() {
+            document.getElementById('quizSection').classList.add('hidden');
+            document.getElementById('quizResultSection').classList.add('hidden');
+            document.getElementById('quizQuestions').innerHTML = '';
+            quizAnswers = [];
+            lastScore = null;
+        }
+
+        const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+        document.getElementById('takeQuizButton').onclick = () => {
+            if (currentStoryIndex === null) return;
+            const story = stories[currentStoryIndex];
+            quizAnswers = new Array(story.questions.length).fill(null);
+
+            document.getElementById('quizStoryTitle').innerText = story.title;
+            const container = document.getElementById('quizQuestions');
+            container.innerHTML = '';
+
+            story.questions.forEach((item, qIdx) => {
+                const card = document.createElement('div');
+                card.className = 'quiz-q-card';
+                const qTitle = document.createElement('p');
+                qTitle.className = 'font-display font-bold text-sm mb-3';
+                qTitle.style.color = 'var(--ink)';
+                qTitle.innerText = `${qIdx + 1}. ${item.q}`;
+                card.appendChild(qTitle);
+
+                item.options.forEach((opt, oIdx) => {
+                    const optDiv = document.createElement('div');
+                    optDiv.className = 'quiz-option';
+                    optDiv.innerHTML = `<span class="quiz-badge">${OPTION_LETTERS[oIdx]}</span><span></span>`;
+                    optDiv.querySelector('span:last-child').textContent = opt;
+                    optDiv.onclick = () => {
+                        quizAnswers[qIdx] = oIdx;
+                        [...card.querySelectorAll('.quiz-option')].forEach(el => el.classList.remove('selected'));
+                        optDiv.classList.add('selected');
+                    };
+                    card.appendChild(optDiv);
+                });
+                container.appendChild(card);
+            });
+
+            document.getElementById('quizResultSection').classList.add('hidden');
+            document.getElementById('quizSection').classList.remove('hidden');
+            document.getElementById('quizSection').scrollIntoView({ behavior: 'smooth' });
+        };
+
+        document.getElementById('submitQuizButton').onclick = () => {
+            const story = stories[currentStoryIndex];
+            if (quizAnswers.includes(null)) {
+                alert("Please answer all 10 questions before submitting.");
+                return;
+            }
+
+            let score = 0;
+            const qCards = document.querySelectorAll('.quiz-q-card');
+            story.questions.forEach((item, qIdx) => {
+                const optionEls = qCards[qIdx].querySelectorAll('.quiz-option');
+                optionEls.forEach((el, oIdx) => {
+                    if (oIdx === item.answer) el.classList.add('correct');
+                    else if (oIdx === quizAnswers[qIdx] && oIdx !== item.answer) el.classList.add('incorrect');
+                });
+                if (quizAnswers[qIdx] === item.answer) score++;
+            });
+
+            lastScore = score;
+            const total = story.questions.length;
+            const percent = Math.round((score / total) * 100);
+
+            document.getElementById('quizScoreDisplay').innerText = `${score}/${total}`;
+            document.getElementById('quizPercentDisplay').innerText = `${percent}%`;
+            document.getElementById('quizSubmitStatus').innerText = "Sending score to teacher's tracker...";
+            document.getElementById('quizResultSection').classList.remove('hidden');
+
+            const bar = document.getElementById('scoreBarFill');
+            const encourage = document.getElementById('quizEncourage');
+            let barColor, message, scoreColor;
+            if (percent >= 80) { barColor = 'var(--green)'; scoreColor = 'var(--green)'; message = "Excellent reading! Keep it up."; }
+            else if (percent >= 50) { barColor = 'var(--gold-dark)'; scoreColor = 'var(--gold-dark)'; message = "Good effort — a little more practice will help."; }
+            else { barColor = 'var(--coral-dark)'; scoreColor = 'var(--coral-dark)'; message = "Let's read this story together again."; }
+            requestAnimationFrame(() => { bar.style.width = percent + '%'; });
+            bar.style.background = barColor;
+            encourage.textContent = message;
+            encourage.style.color = scoreColor;
+            document.getElementById('quizScoreDisplay').style.color = scoreColor;
+
+            submitScoreToSheet(story.title, score, total);
+
+            setTimeout(() => {
+                document.getElementById('quizResultSection').scrollIntoView({ behavior: 'smooth' });
+            }, 200);
+        };
+
+        async function submitScoreToSheet(storyTitle, score, total) {
+            const statusEl = document.getElementById('quizSubmitStatus');
+            const name = document.getElementById('studentName').value.trim();
+            const grade = document.getElementById('studentGrade').value;
+            const section = document.getElementById('studentSection').value.trim();
+
+            if (!SHEET_WEBHOOK_URL || SHEET_WEBHOOK_URL === "PASTE_YOUR_URL_HERE") {
+                statusEl.innerText = "Not sent — Google Sheet URL not configured yet.";
+                return;
+            }
+            if (!name) {
+                statusEl.innerText = "Not sent — please enter the student's name before taking the test.";
+                return;
+            }
+
+            const payload = {
+                studentName: name,
+                grade: grade ? `Grade ${grade}` : "",
+                section: section,
+                storyTitle: storyTitle,
+                score: score,
+                totalItems: total,
+                timeSpent: seconds,
+                wordsAssisted: clickedWords.length,
+                totalWords: currentStoryWordCount
+            };
+
+            try {
+                // no-cors: Apps Script Web Apps don't return readable CORS headers,
+                // so we fire the request and can't read the response body directly.
+                await fetch(SHEET_WEBHOOK_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(payload)
+                });
+                statusEl.innerText = "Score sent to the teacher's tracker ✓";
+            } catch (err) {
+                statusEl.innerText = "Could not reach the tracker. Check your internet connection.";
+            }
+        }
+
+        // RECORDING & REPORTING
+        let mediaRecorder; let audioChunks = [];
+        document.getElementById('startRecord').onclick = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.start(); audioChunks = [];
+                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    document.getElementById('audioPlayback').src = audioUrl;
+                    document.getElementById('audioPlaybackContainer').classList.remove('hidden');
+                    document.getElementById('downloadLink').href = audioUrl;
+                    document.getElementById('downloadLink').download = `reading_${Date.now()}.webm`;
+                };
+                document.getElementById('startRecord').disabled = true;
+                document.getElementById('startRecord').classList.add('is-recording');
+                document.getElementById('startRecord').innerHTML = '<i data-lucide="disc" class="w-3 h-3"></i> Recording…';
+                refreshIcons();
+                document.getElementById('stopRecord').disabled = false;
+                document.getElementById('stopRecord').classList.add('is-armed');
+            } catch (err) { alert("Mic access denied."); }
+        };
+
+        document.getElementById('stopRecord').onclick = () => {
+            mediaRecorder.stop();
+            document.getElementById('startRecord').disabled = false;
+            document.getElementById('startRecord').classList.remove('is-recording');
+            document.getElementById('startRecord').innerHTML = '<i data-lucide="circle" class="w-3 h-3 fill-current"></i> Start recording';
+            document.getElementById('stopRecord').disabled = true;
+            document.getElementById('stopRecord').classList.remove('is-armed');
+            refreshIcons();
+        };
+
+        document.getElementById('generateReportButton').onclick = () => {
+            document.getElementById('reportSection').classList.remove('hidden');
+            document.getElementById('reportTime').innerText = timerText.innerText;
+            document.getElementById('totalWordCountDisplay').innerText = currentStoryWordCount;
+            document.getElementById('totalClicksCount').textContent = clickedWords.length;
+            document.getElementById('clickedWordsList').innerHTML = [...new Set(clickedWords)].map(w => `<span class="word-chip">${w}</span>`).join('');
+            document.getElementById('reportSection').scrollIntoView({ behavior: 'smooth' });
+        };
+
+        document.getElementById('resetButton').onclick = () => {
+            clickedWords = [];
+            document.getElementById('totalClicksCount').textContent = "0";
+            document.getElementById('totalWordCountDisplay').innerText = "0";
+            document.getElementById('clickedWordsList').innerHTML = "";
+            resetTimer();
+        };
+
+        refreshIcons();
+    </script>
+</body>
+</html>
