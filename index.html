@@ -631,40 +631,59 @@ The most priceless gift that God has given us is our life. We should not waste o
         async function getDef(word) {
             const clean = word.toLowerCase().replace(/[^a-z]/g, '');
             if (clean.length < 3) return null;
-            if (clean in definitionCache) return definitionCache[clean]; // already looked up (even if it was "not found") — skip the network call
+            if (clean in definitionCache) return definitionCache[clean]; // already confirmed "not found" — skip the network call
+
+            // Bail out after 6s instead of letting a slow/stuck request hang indefinitely.
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 6000);
             try {
-                const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${clean}`);
+                const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${clean}`, { signal: controller.signal });
+                if (res.status === 404) {
+                    // The dictionary genuinely has no entry for this word — safe to remember permanently.
+                    definitionCache[clean] = null;
+                    return null;
+                }
+                if (!res.ok) return null; // transient server hiccup — don't cache, so a later hover can retry
                 const data = await res.json();
                 const d = data[0].meanings[0].definitions[0].definition;
                 definitionCache[clean] = d;
                 return d;
             } catch (e) {
-                definitionCache[clean] = null;
+                // Network error or timeout — likely transient (e.g. too many requests in
+                // flight at once). Deliberately NOT cached, so hovering again later retries
+                // instead of being stuck showing "No definition found" forever.
                 return null;
+            } finally {
+                clearTimeout(timeoutId);
             }
         }
 
         // Looks up every distinct word in the story in the background, right after
         // Process runs, so definitions are already cached by the time the student
         // hovers — turning most hovers from "wait for a network request" into an
-        // instant lookup. Runs several requests in parallel (not all at once) to
-        // stay polite to the free dictionary API.
+        // instant lookup. Kept deliberately low-concurrency and staggered: browsers
+        // cap concurrent connections to one host at ~6, so firing too many prefetch
+        // requests at once starves out the request for whatever word the student is
+        // actually hovering right now, making it feel slow or stuck.
         function prefetchDefinitions(text) {
             const words = [...new Set(
                 text.split(/\s+/)
                     .map(w => w.toLowerCase().replace(/[^a-z]/g, ''))
                     .filter(w => w.length >= 3)
             )];
-            const CONCURRENCY = 6;
+            const CONCURRENCY = 2;
+            const STAGGER_MS = 150;
             let cursor = 0;
             async function worker() {
                 while (cursor < words.length) {
                     const w = words[cursor++];
                     if (!(w in definitionCache)) await getDef(w);
+                    await new Promise(r => setTimeout(r, STAGGER_MS));
                 }
             }
             for (let i = 0; i < CONCURRENCY; i++) worker();
         }
+
 
         document.getElementById('processButton').onclick = () => {
             synth.cancel();
@@ -701,7 +720,14 @@ The most priceless gift that God has given us is our life. We should not waste o
                         tooltip.innerHTML = '<span class="italic" style="opacity:.7; font-size:10px;">Defining...</span>';
                         const d = await getDef(t);
                         if (requestToken !== hoverRequestId) return; // a newer hover has already started; ignore this stale result
-                        tooltip.innerHTML = d ? `<b>${t.trim()}:</b> ${d}` : "No definition found.";
+                        if (d) {
+                            tooltip.innerHTML = `<b>${t.trim()}:</b> ${d}`;
+                        } else if (clean in definitionCache) {
+                            tooltip.innerHTML = "No definition found.";
+                        } else {
+                            // Lookup failed (timeout/network hiccup) rather than a confirmed "not in dictionary" — not cached, so it's worth trying again.
+                            tooltip.innerHTML = '<span style="opacity:.75;">Couldn\'t load — hover away and back to retry.</span>';
+                        }
                     };
                     span.onmouseout = () => tooltip.style.display = 'none';
 
