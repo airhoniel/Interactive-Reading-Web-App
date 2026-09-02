@@ -628,10 +628,15 @@ The most priceless gift that God has given us is our life. We should not waste o
 
         select.onchange = () => { if(select.value !== "") { document.getElementById('paragraphInput').value = stories[select.value].content; document.getElementById('processButton').click(); } };
 
+        // If the free dictionary API starts rejecting requests (HTTP 429, "too many
+        // requests"), every worker respects this shared cool-down instead of keeps
+        // hammering it and making things worse.
+        let rateLimitedUntil = 0;
+
         async function getDef(word) {
             const clean = word.toLowerCase().replace(/[^a-z]/g, '');
-            if (clean.length < 3) return null;
-            if (clean in definitionCache) return definitionCache[clean]; // already confirmed "not found" — skip the network call
+            if (clean.length < 3) return { def: null, reason: 'too-short' };
+            if (clean in definitionCache) return { def: definitionCache[clean], reason: definitionCache[clean] ? 'ok' : 'not-found' };
 
             // Bail out after 6s instead of letting a slow/stuck request hang indefinitely.
             const controller = new AbortController();
@@ -641,21 +646,37 @@ The most priceless gift that God has given us is our life. We should not waste o
                 if (res.status === 404) {
                     // The dictionary genuinely has no entry for this word — safe to remember permanently.
                     definitionCache[clean] = null;
-                    return null;
+                    return { def: null, reason: 'not-found' };
                 }
-                if (!res.ok) return null; // transient server hiccup — don't cache, so a later hover can retry
+                if (res.status === 429) {
+                    rateLimitedUntil = Date.now() + 5000; // back off background prefetching for a bit
+                    return { def: null, reason: 'rate-limited' };
+                }
+                if (!res.ok) return { def: null, reason: `http-${res.status}` }; // transient server hiccup — don't cache, so a later hover can retry
                 const data = await res.json();
                 const d = data[0].meanings[0].definitions[0].definition;
                 definitionCache[clean] = d;
-                return d;
+                return { def: d, reason: 'ok' };
             } catch (e) {
-                // Network error or timeout — likely transient (e.g. too many requests in
-                // flight at once). Deliberately NOT cached, so hovering again later retries
-                // instead of being stuck showing "No definition found" forever.
-                return null;
+                // Network error, CORS failure, or timeout.
+                const reason = e.name === 'AbortError' ? 'timeout' : (e.message || 'network-error');
+                return { def: null, reason };
             } finally {
                 clearTimeout(timeoutId);
             }
+        }
+
+        // Tries a couple of times with a short pause between attempts — worth it for
+        // an interactive hover the student is actively waiting on, since a single
+        // failed attempt is often just a momentary blip rather than a real dead end.
+        async function getDefWithRetry(word, attempts = 2) {
+            let last = { def: null, reason: 'unknown' };
+            for (let i = 0; i < attempts; i++) {
+                last = await getDef(word);
+                if (last.def !== null || last.reason === 'not-found' || last.reason === 'too-short') return last;
+                if (i < attempts - 1) await new Promise(r => setTimeout(r, 500));
+            }
+            return last;
         }
 
         // Looks up every distinct word in the story in the background, right after
@@ -664,18 +685,22 @@ The most priceless gift that God has given us is our life. We should not waste o
         // instant lookup. Kept deliberately low-concurrency and staggered: browsers
         // cap concurrent connections to one host at ~6, so firing too many prefetch
         // requests at once starves out the request for whatever word the student is
-        // actually hovering right now, making it feel slow or stuck.
+        // actually hovering right now, making it feel slow or stuck. If the API starts
+        // rate-limiting, prefetching pauses instead of digging the hole deeper.
         function prefetchDefinitions(text) {
             const words = [...new Set(
                 text.split(/\s+/)
                     .map(w => w.toLowerCase().replace(/[^a-z]/g, ''))
                     .filter(w => w.length >= 3)
             )];
-            const CONCURRENCY = 2;
-            const STAGGER_MS = 150;
+            const CONCURRENCY = 1;
+            const STAGGER_MS = 300;
             let cursor = 0;
             async function worker() {
                 while (cursor < words.length) {
+                    if (Date.now() < rateLimitedUntil) {
+                        await new Promise(r => setTimeout(r, rateLimitedUntil - Date.now()));
+                    }
                     const w = words[cursor++];
                     if (!(w in definitionCache)) await getDef(w);
                     await new Promise(r => setTimeout(r, STAGGER_MS));
@@ -718,15 +743,19 @@ The most priceless gift that God has given us is our life. We should not waste o
                         }
 
                         tooltip.innerHTML = '<span class="italic" style="opacity:.7; font-size:10px;">Defining...</span>';
-                        const d = await getDef(t);
+                        const { def: d, reason } = await getDefWithRetry(t);
                         if (requestToken !== hoverRequestId) return; // a newer hover has already started; ignore this stale result
                         if (d) {
                             tooltip.innerHTML = `<b>${t.trim()}:</b> ${d}`;
-                        } else if (clean in definitionCache) {
+                        } else if (reason === 'not-found') {
                             tooltip.innerHTML = "No definition found.";
+                        } else if (reason === 'rate-limited') {
+                            tooltip.innerHTML = '<span style="opacity:.85;">The dictionary service is busy right now — try again in a few seconds.</span>';
                         } else {
-                            // Lookup failed (timeout/network hiccup) rather than a confirmed "not in dictionary" — not cached, so it's worth trying again.
-                            tooltip.innerHTML = '<span style="opacity:.75;">Couldn\'t load — hover away and back to retry.</span>';
+                            // Lookup failed (timeout/network/CORS) rather than a confirmed "not in dictionary" —
+                            // not cached, so it's worth trying again. Reason is shown so it can be diagnosed
+                            // if it keeps happening (e.g. "Failed to fetch" usually means CORS or no internet).
+                            tooltip.innerHTML = `<span style="opacity:.75;">Couldn't load (${reason}) — hover away and back to retry.</span>`;
                         }
                     };
                     span.onmouseout = () => tooltip.style.display = 'none';
