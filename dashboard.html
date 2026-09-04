@@ -127,7 +127,7 @@
                 <p>S.M.A.R.T. Reading Intervention Portal — Teacher View</p>
             </div>
         </div>
-        <a href="https://airhoniel.github.io/Interactive-Reading-Web-App/index.html" class="back-link">&larr; Back to portal</a>
+        <a href="reading_portal.html" class="back-link">&larr; Back to portal</a>
     </div>
 
     <div class="wrap">
@@ -147,7 +147,7 @@
         </div>
 
         <div id="loadingState" class="loading-state">
-            <div class="font-display" style="font-size:0.9rem;">Loading student records…</div>
+            <div id="loadingMsg" class="font-display" style="font-size:0.9rem;">Loading student records…</div>
         </div>
 
         <div id="errorState" class="error-state" style="display:none;"></div>
@@ -189,7 +189,8 @@
             document.getElementById('loadingState').style.display = 'none';
             const err = document.getElementById('errorState');
             err.style.display = 'block';
-            err.innerHTML = `<div class="font-display" style="font-size:0.9rem;">Couldn't load the report</div><div style="font-size:0.8rem; margin-top:6px;">${msg}</div>`;
+            err.innerHTML = `<div class="font-display" style="font-size:0.9rem;">Couldn't load the report</div><div style="font-size:0.8rem; margin-top:6px;">${msg}</div><button id="retryBtn" class="download-btn" style="margin-top:16px;">↻ Try again</button>`;
+            document.getElementById('retryBtn').onclick = loadReport;
         }
 
         // Minimal, dependency-free CSV parser (handles quoted fields containing
@@ -232,21 +233,58 @@
             return 'low';
         }
 
+        // Fetches the published CSV with a hard timeout, so a stalled connection
+        // fails visibly within ~10s instead of leaving the page stuck on "Loading…"
+        // forever with no explanation (the exact failure mode we saw earlier with
+        // the dictionary API in this same deployment environment).
+        async function fetchCSV() {
+            // A cache-busting query param plus cache:'no-store' ensures we always get
+            // a fresh copy rather than a stale cached one from an earlier visit —
+            // important since this dashboard is meant to reflect live scores.
+            const url = SHEET_CSV_URL + (SHEET_CSV_URL.includes('?') ? '&' : '?') + 'cb=' + Date.now();
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            try {
+                const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+                if (!res.ok) throw new Error(`http-${res.status}`);
+                return await res.text();
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
         async function loadReport() {
-            if (!SHEET_CSV_URL || SHEET_CSV_URL === "https://docs.google.com/spreadsheets/d/e/2PACX-1vTqfX1cm-Wc4-g-yRnBXwq2bLGMJ-YCKVAO4NvNAvif7kzPcJ3ZS9M_h2l8lM8-aWux-7LVZ9IK30HQ/pub?gid=0&single=true&output=csv) {
+            if (!SHEET_CSV_URL || SHEET_CSV_URL === "PASTE_YOUR_PUBLISHED_CSV_URL_HERE") {
                 showSetupNeeded();
                 return;
             }
 
+            document.getElementById('loadingState').style.display = 'block';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('reportBody').style.display = 'none';
+            const loadingMsg = document.getElementById('loadingMsg');
+            loadingMsg.textContent = 'Loading student records…';
+            const slowNotice = setTimeout(() => {
+                loadingMsg.textContent = 'Still loading — the first load can take a few seconds…';
+            }, 4000);
+
             let text;
             try {
-                const res = await fetch(SHEET_CSV_URL);
-                if (!res.ok) throw new Error(`The sheet responded with an error (HTTP ${res.status}).`);
-                text = await res.text();
+                text = await fetchCSV();
             } catch (e) {
-                showError(`Could not reach the published sheet. Check your internet connection, or confirm the sheet is still published (File → Share → Publish to web) and the URL in this file is correct.`);
-                return;
+                // First attempt failed (timeout, network hiccup, or a Google-side blip) —
+                // worth one automatic retry before bothering the user with an error.
+                try {
+                    loadingMsg.textContent = 'That took a while — trying again…';
+                    text = await fetchCSV();
+                } catch (e2) {
+                    clearTimeout(slowNotice);
+                    const reason = e2.name === 'AbortError' ? 'the request timed out' : (e2.message === 'http-404' ? 'the published link no longer works (HTTP 404)' : 'a network error occurred');
+                    showError(`Could not reach the published sheet — ${reason}. Check that the sheet is still published (File → Share → Publish to web) and that the URL in this file is correct, then try again.`);
+                    return;
+                }
             }
+            clearTimeout(slowNotice);
 
             const rows = parseCSV(text);
             if (rows.length < 2) {
